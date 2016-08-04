@@ -1,0 +1,20 @@
+{
+  "name": "drush/drush_du",
+  "description": "Drush Drupal User is a virtual Client for authenticating and interacting with a Drupal website, by emulating browser interactions.",
+  "homepage": "http://drupal.org/project/drush_du",
+  "license": "GPL-2.0+",
+  "prefer-stable": true,
+  "authors": [
+    { "name": "Dan Morrison", "email": "dan@coders.co.nz" }
+  ],
+  "require": {
+    "php": "5.x|7.x",
+    "fabpot/goutte": "3.x"
+  },
+  "minimum-stability": "dev",
+  "autoload": {
+    "psr-4": {
+      "Drupal\\du\\": "src/du"
+    }
+  }
+}
