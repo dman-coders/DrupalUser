@@ -47,6 +47,14 @@ function du_drush_command() {
     'topics' => array('docs-du-commands'),
   );
 
+  $items['du-logout'] = array(
+    'description' => 'Logs out of the site, if authenication was being persistent.',
+    'options' => array(
+      ) + $du_global_options,
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
+    'topics' => array('docs-du-commands'),
+  );
+
   $items['docs-du'] = array(
     'description' => 'Connect to and interact with Drupal sites such as drupal.org.',
     'hidden' => TRUE,
@@ -66,9 +74,15 @@ function du_drush_command() {
 function drush_du_info() {
   $du = drush_du_get_du();
   $info = $du->getSiteInfo();
+  return $info;
+}
 
-  // Cookie persistance is handled at the drush options/temp level.
-  $cookies = $du->getCookieJar();
+/**
+ * Du-info command callback.
+ */
+function drush_du_logout() {
+  $du = drush_du_get_du();
+  $info = $du->logout();
   return $info;
 }
 
@@ -89,5 +103,19 @@ function drush_du_get_du() {
   }
   $du = new DrupalUser($du_options);
   // If we have old cookies, grab them now.
+  if (($cjf = drush_du_cookiejar_file())) {
+    $du->readCookieJarFile($cjf);
+  }
   return $du;
+}
+
+
+function drush_du_cookiejar_file($key = 'default') {
+  if ($cache_dir = drush_directory_cache('cookie')) {
+    $cache_name = str_replace(array(':', '/', '?', '='), '-', $key);
+    return $cache_dir . "/du_cookie-" . $cache_name;
+  }
+  else {
+    return FALSE;
+  }
 }
