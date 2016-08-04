@@ -47,5 +47,8 @@ function drush_du_info() {
 
   $du = new DrupalUser();
   $info = $du->getSiteInfo();
+
+  // Cookie persistance is handled at the drush options/temp level.
+  $cookies = $du->getCookieJar();
   return $info;
 }

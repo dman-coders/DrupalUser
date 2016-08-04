@@ -32,6 +32,8 @@ class DrupalUser extends Client {
   public function __construct($site_def = array()) {
     // TODO validation.
     $this->site = $site_def + $this->site;
+
+    parent::__construct();
   }
 
   /**
@@ -55,6 +57,38 @@ class DrupalUser extends Client {
    * Makes a connection and scrapes some basic diagnostics.
    */
   public function getSiteInfo() {
+    $info = array();
+    /** @var \Symfony\Component\DomCrawler\Crawler $crawler */
+    $crawler = $this->request('GET', $this->site['url']);
+    $info['HTML Title'] = $crawler->filter('title')->text();
+
+    /*
+    $html_title = $crawler->filter('title')->text();
+    if ($html_title->count() > 0) {
+      $info['HTML Title'] = $html_title->each(function ($node) {
+        return trim($node->text());
+      });
+      $info['HTML Title'] = $html_title->text();
+    }
+    */
+
+    // Dig out some info from the response.
+    /** @var \Symfony\Component\BrowserKit\Response $response */
+    $response = $this->getResponse();
+    if (!empty($response->getHeader('Server'))) {
+      $info['Server'] = $response->getHeader('Server');
+    }
+
+    return $this->site + $info;
+  }
+
+  public function login() {
+    $login_url = $this->site['url'] . '/user';
+    $crawler = $this->request('GET', $login_url);
+    $form = $crawler->selectButton('Log in')->form();
+    // Beware TFA here now!
+    $crawler = $this->submit($form, array('name' => $user, 'pass' => $pass));
+
     return $this->site;
   }
 
