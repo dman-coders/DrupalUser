@@ -16,11 +16,11 @@ function du_drush_command() {
       'description' => 'The site to interact with. Defaults to https://www.drupal.org',
       'example' => 'https://drupal.org',
     ),
-    'user' => array(
+    'username' => array(
       'description' => 'The username to authenticate as.',
     ),
-    'pass' => array(
-      'description' => 'The password to authenticate the username with.'
+    'password' => array(
+      'description' => 'The password to authenticate the username with.',
     ),
 
   );

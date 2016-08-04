@@ -3,7 +3,6 @@
 namespace Drupal\du;
 
 use Goutte\Client;
-use Psr\Log\LoggerInterface;
 
 /**
  * Drupal User Agent, for interacting with Drupal style websites.
@@ -40,7 +39,7 @@ class DrupalUser extends Client {
    */
   public function __construct($site_def = array()) {
     // TODO validation.
-    $this->site = (array)$site_def + $this->site;
+    $this->site = (array) $site_def + $this->site;
 
     parent::__construct();
   }
@@ -77,12 +76,12 @@ class DrupalUser extends Client {
     /*
     $html_title = $crawler->filter('title')->text();
     if ($html_title->count() > 0) {
-      $info['HTML Title'] = $html_title->each(function ($node) {
-        return trim($node->text());
-      });
-      $info['HTML Title'] = $html_title->text();
+    $info['HTML Title'] = $html_title->each(function ($node) {
+    return trim($node->text());
+    });
+    $info['HTML Title'] = $html_title->text();
     }
-    */
+     */
 
     // Dig out some info from the response.
     /** @var \Symfony\Component\BrowserKit\Response $response */
@@ -91,31 +90,77 @@ class DrupalUser extends Client {
       $info['Server'] = $response->getHeader('Server');
     }
 
-    if (!empty($this->site['username'])) {
-      // It's worth trying to log in.
-      $this->login();
-      if (isset($this->authenticated)) {
-        $info['Authenticated'] = $this->authenticated;
+    // It's worth trying to log in to get more info.
+    $this->login();
+    if (isset($this->authenticated)) {
+      if ($this->authenticated === TRUE) {
+        $info['Authenticated'] = "TRUE";
+      }
+      if ($this->authenticated === FALSE) {
+        $info['Authenticated'] = "FALSE";
       }
     }
 
     return $this->site + $info;
   }
 
+  /**
+   * Authenticate using the given username credentials, if any.
+   */
   public function login() {
+    if (empty($this->site['username'])) {
+      $this->log('No username provided, not authenticating', array(), 'info');
+      return;
+    }
     $this->log("Authenticating...", array());
     $login_url = $this->site['url'] . '/user';
+    /** @var \Symfony\Component\DomCrawler\Crawler $crawler */
     $crawler = $this->request('GET', $login_url);
     $form = $crawler->selectButton('Log in')->form();
     // Beware TFA here now!
-
     $crawler = $this->submit($form, array('name' => $this->site['username'], 'pass' => $this->site['password']));
 
-    // See if that looked like a success
-    $this->authenticated = 'dunno';
+    // See if that looked like a success.
+    // Our best clue is the <body class="logged-in"> parameter we see
+    // in almost all Drupal themes.
+    $check_logged_in = $crawler->filter('body.logged-in')->count();
+    if ($check_logged_in) {
+      $this->log("Authentication succeeded", array(), 'success');
+      $this->authenticated = TRUE;
+    }
+    else {
+      $this->log("Authentication failed", array(), 'error');
+      if ($messages = $this->getMessages($crawler)) {
+        $this->log($messages, array(), 'warning');
+      }
+      $this->authenticated = FALSE;
+    }
+
     return $this;
   }
 
+  /**
+   * Scrape the given crawler DOM for alert messages.
+   *
+   * @param \Symfony\Component\DomCrawler\Crawler $crawler
+   *
+   * @return null|string
+   */
+  protected function getMessages($crawler) {
+    // Making assumptions that the theme and DOM are Drupally again here.
+    // Search for both ID (preferred) and class (fallback) elements
+    // called 'messages'.
+    $messages = $crawler->filter('#messages');
+    if ($messages->count() == 0) {
+      $messages = $crawler->filter('.messages');
+    }
+    if ($messages->count() > 0) {
+      if (!empty($messages->text())) {
+        return trim($messages->text());
+      }
+    }
+    return NULL;
+  }
 
   /**
    * Log a message.
@@ -123,18 +168,12 @@ class DrupalUser extends Client {
    * Using a Symfony Logger interface if one was provided,
    * or just the drush_log if not.
    *
-   * @param $message
-   * @param $strings
-   * @param $level
+   * @param string $message
+   * @param array $strings
+   * @param string $logLevel
    */
   private function log($message, $strings, $logLevel = 'notice') {
-    if (is_callable('xdebug_call_function')) {
-      $function = xdebug_call_function();
-    }
-    else {
-      $function = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]['function'];
-    }
-
+    $function = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]['function'];
     if ($this->logger) {
       /* \Psr\Log\LoggerInterface $logger */
       $this->logger->log($logLevel, '[' . $function . '] ' . dt($message, $strings));
