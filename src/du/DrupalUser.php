@@ -125,8 +125,34 @@ class DrupalUser extends Client {
     // in almost all Drupal themes.
     $check_logged_in = $crawler->filter('body.logged-in')->count();
     if ($check_logged_in) {
-      $this->log("Authentication succeeded", array(), 'success');
+      $this->log("Account authentication succeeded", array(), 'success');
       $this->authenticated = TRUE;
+    }
+    elseif($crawler->filter('#tfa-form')->count() > 0) {
+      $this->log("Authentication requires TFA. Input needed!", array(), 'warning');
+      // This is just Drupal.org specific so far.
+      drush_notify_send_audio('T F A Needed') ;
+      $this->log($crawler->filter('#tfa-form')->text(), array());
+
+      $tfa_code = drush_prompt(dt('Please enter your current TFA code.'));
+      $form = $crawler->selectButton('Verify')->form();
+      $crawler = $this->submit($form, array('code' => $tfa_code));
+
+      // Verify success again.
+      // TODO: Remove this repetition somehow.
+      $check_logged_in = $crawler->filter('body.logged-in')->count();
+      if ($check_logged_in) {
+        $this->log("TFA Authentication succeeded", array(), 'success');
+        $this->authenticated = TRUE;
+      }
+      else {
+        $this->log("TFA Authentication failed", array(), 'error');
+        if ($messages = $this->getMessages($crawler)) {
+          $this->log($messages, array(), 'warning');
+        }
+        $this->authenticated = FALSE;
+      }
+
     }
     else {
       $this->log("Authentication failed", array(), 'error');
