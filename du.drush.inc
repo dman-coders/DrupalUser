@@ -26,6 +26,12 @@ function du_drush_command() {
       'pipe' => 'Print the full issue info data structure.',
     ) + $du_global_options,
 
+    'outputformat' => array(
+      'default' => 'key-value',
+      'pipe-format' => 'json',
+    ),
+    'output-data-type' => 'format-list',
+
     'aliases' => array('dui'),
     'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
     'topics' => array('docs-du-commands'),

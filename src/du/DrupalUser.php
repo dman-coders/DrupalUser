@@ -31,7 +31,7 @@ class DrupalUser extends Client {
    */
   public function __construct($site_def = array()) {
     // TODO validation.
-    $this->site = $site_def;
+    $this->site = $site_def + $this->site;
   }
 
   /**
