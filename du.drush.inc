@@ -12,9 +12,9 @@ use Drupal\du\DrupalUser;
  */
 function du_drush_command() {
   $du_global_options = array(
-    'url' => array(
+    'url'      => array(
       'description' => 'The site to interact with. Defaults to https://www.drupal.org',
-      'example' => 'https://drupal.org',
+      'example'     => 'https://drupal.org',
     ),
     'username' => array(
       'description' => 'The username to authenticate as.',
@@ -25,44 +25,43 @@ function du_drush_command() {
 
   );
   $items['du-info'] = array(
-    'description' => 'Show information about the target site.',
-    'examples' => array(
-      'drush du-info' => 'Get info on the currently chosen site.',
+    'description'        => 'Show information about the target site.',
+    'examples'           => array(
+      'drush du-info'                                 => 'Get info on the currently chosen site.',
       'drush du-info --url=http://groups.drupal.org/' => 'Get info on the named site.',
     ),
-    'arguments' => array(),
+    'arguments'          => array(),
     'required-arguments' => FALSE,
-    'options' => array(
+    'options'            => array(
       'pipe' => 'Print the full issue info data structure.',
     ) + $du_global_options,
 
-    'outputformat' => array(
-      'default' => 'key-value',
+    'outputformat'     => array(
+      'default'     => 'key-value',
       'pipe-format' => 'json',
     ),
     'output-data-type' => 'format-list',
 
-    'aliases' => array('dui'),
+    'aliases'   => array('dui'),
     'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
-    'topics' => array('docs-du-commands'),
+    'topics'    => array('docs-du-commands'),
   );
 
   $items['du-logout'] = array(
     'description' => 'Logs out of the site, if authenication was being persistent.',
-    'options' => array(
-      ) + $du_global_options,
-    'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
-    'topics' => array('docs-du-commands'),
+    'options'     => array() + $du_global_options,
+    'bootstrap'   => DRUSH_BOOTSTRAP_DRUSH,
+    'topics'      => array('docs-du-commands'),
   );
 
   $items['docs-du'] = array(
-    'description' => 'Connect to and interact with Drupal sites such as drupal.org.',
-    'hidden' => TRUE,
-    'topic' => TRUE,
-    'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
-    'callback' => 'drush_print_file',
+    'description'        => 'Connect to and interact with Drupal sites such as drupal.org.',
+    'hidden'             => TRUE,
+    'topic'              => TRUE,
+    'bootstrap'          => DRUSH_BOOTSTRAP_DRUSH,
+    'callback'           => 'drush_print_file',
     'callback arguments' => array(dirname(__FILE__) . '/README.md'),
-    'aliases' => array('docs-du-commands'),
+    'aliases'            => array('docs-du-commands'),
   );
 
   return $items;
@@ -109,7 +108,12 @@ function drush_du_get_du() {
   return $du;
 }
 
-
+/**
+ * Fetch the path to the current cookie storage.
+ *
+ * @param string $key
+ * @return bool|string
+ */
 function drush_du_cookiejar_file($key = 'default') {
   if ($cache_dir = drush_directory_cache('cookie')) {
     $cache_name = str_replace(array(':', '/', '?', '='), '-', $key);

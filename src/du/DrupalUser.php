@@ -13,7 +13,7 @@ use \Symfony\Component\DomCrawler\Crawler;
 class DrupalUser extends Client {
 
   private $site = array(
-    'url' => 'https://www.drupal.org',
+    'url'      => 'https://www.drupal.org',
     'username' => '',
     'password' => '',
   );
@@ -120,7 +120,7 @@ class DrupalUser extends Client {
     $form = $crawler->selectButton('Log in')->form();
     $parameters = array(
       'name' => $this->site['username'],
-      'pass' => $this->site['password']
+      'pass' => $this->site['password'],
     );
     $crawler = $this->submit($form, $parameters);
 
@@ -185,7 +185,7 @@ class DrupalUser extends Client {
    *
    * @param \Symfony\Component\DomCrawler\Crawler $crawler
    *   Current active DOM.
-
+   *
    * @return bool
    *   Logged in or not.
    *
