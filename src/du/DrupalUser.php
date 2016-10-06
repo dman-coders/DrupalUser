@@ -13,9 +13,10 @@ use \Symfony\Component\DomCrawler\Crawler;
 class DrupalUser extends Client {
 
   private $site = array(
-    'url'      => 'https://www.drupal.org',
+    'uri'      => 'https://www.drupal.org',
     'username' => '',
     'password' => '',
+    'content_selector' => '#content',
   );
 
   private $authenticated = NULL;
@@ -34,9 +35,10 @@ class DrupalUser extends Client {
    * @param array $site_def
    *   A keyed array of connection details for connecting to a site.
    *   Expected keys:
-   *   - url
+   *   - uri
    *   - username
    *   - password
+   *   - content_selector
    *   .
    */
   public function __construct($site_def = array()) {
@@ -74,10 +76,10 @@ class DrupalUser extends Client {
   public function getSiteInfo() {
     $info = array();
 
-    $this->log("Contacting server...", array('!url' => $this->site['url']));
+    $this->log("Contacting server :uri ...", array(':uri' => $this->site['uri']));
 
     /** @var Crawler $crawler */
-    $crawler = $this->request('GET', $this->site['url']);
+    $crawler = $this->request('GET', $this->site['uri']);
     $info['HTML Title'] = $crawler->filter('title')->text();
 
     // Dig out some info from the response.
@@ -110,7 +112,7 @@ class DrupalUser extends Client {
       return $this;
     }
     $this->log("Authenticating...", array());
-    $login_url = $this->site['url'] . '/user';
+    $login_url = $this->site['uri'] . '/user';
     /** @var \Symfony\Component\DomCrawler\Crawler $crawler */
     $crawler = $this->request('GET', $login_url);
     if ($this->isLoggedIn($crawler)) {
@@ -133,7 +135,7 @@ class DrupalUser extends Client {
       $this->log("Authentication requires TFA. Input needed!", array(), 'warning');
       // This is just Drupal.org specific so far.
       // Make a big deal about interaction needed.
-      drush_notify_send_audio('T F A Needed');
+      drush_notify_send_audio('Two Factor Authentication Key Needed');
       $this->log($crawler->filter('#tfa-form')->text(), array());
       $tfa_code = drush_prompt(dt('Please enter your current TFA code.'));
       $form = $crawler->selectButton('Verify')->form();
@@ -174,10 +176,28 @@ class DrupalUser extends Client {
    * De-authenticate from the site.
    */
   public function logout() {
-    $logout_url = $this->site['url'] . '/user/logout';
+    $logout_url = $this->site['uri'] . '/user/logout';
     $this->request('GET', $logout_url);
     $this->writeCookieJarFile();
     $this->log("Logged out", array(), 'success');
+  }
+
+  /**
+   * Retrieve the given page from the site.
+   *
+   * If possible, return just the title and content body as plain text.
+   */
+  public function getPage($path) {
+    $url = $this->site['uri'] . $path;
+    $this->log("Fetching URL :url", array(':url' => $url), 'debug');
+    /** @var \Symfony\Component\DomCrawler\Crawler $crawler */
+    $crawler = $this->request('GET', $url);
+    $content = new \Html2Text\Html2Text($crawler->filter($this->site['content_selector'])->html(), array('width' => 0));
+    return array(
+      'title' => $crawler->filter('title')->first()->text(),
+      'h1' => $crawler->filter('h1')->first()->text(),
+      'content' => $content->getText(),
+    );
   }
 
   /**

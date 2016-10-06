@@ -9,7 +9,8 @@
   ],
   "require": {
     "php": "5.x|7.x",
-    "fabpot/goutte": "3.x"
+    "fabpot/goutte": "3.x",
+    "html2text/html2text": "^4.0"
   },
   "minimum-stability": "dev",
   "autoload": {

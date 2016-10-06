@@ -6,19 +6,39 @@ Uses cookies to create a persistent session between drush actions.
 
 Supports TFA authentication (drupal.org)
 
-    drush du-login --url=https://drupal.org --username=AzureDiamond --password=hunter2
-    drush du-login --url=https://drupal.org --username=AzureDiamond --password=hunter2 --tfa=543211
+Different profiles for different sites can be configured. 
+These profiles may be stored locally by adding them to you drushrc.
+
+Examples:
+
+    drush du-login --uri=https://drupal.org --username=AzureDiamond --password=hunter2
+    drush du-login --uri=https://drupal.org --username=AzureDiamond --password=hunter2 --tfa=543211
     drush du-info
+    drush du-get-page /user --format=json
     drush du-logout
+
+(Use drush help to find more about the options)
+
+## Features
+
+Persistent login. After authenticating once, a session cookie is retained.
+This is expected to make subsequent web requests work immediately.
+Web requests that require authentication should check for authentication
+status and automatically log in if they can.
     
 ## Status
 
 It doesn't do much *useful* yet, the actual actions:
 interacting with the issue Queue etc, are still to come.
 
+The "DrupalUser" component is site-agnostic, so does not contain any actions
+that are specific to any one website.
+It should be *extended* to create a site-specific user agent that contains
+site-specific utility actions.
+
 ## Limitations
 
-It's primarily intended for use with Drupal.org itself, 
+It's originally intended for use with Drupal.org itself, 
  and other reasonably standard Drupal sites. 
 It has some assumptions about the way Drupal works embedded in it.
 It's really expected to just be a d.o-specific client, but incidentally
@@ -36,11 +56,44 @@ Unusually for drush, this is a PSR-4 style object, with most of the
 
 To avoid having to enter credentials or connection details
 all the time, it's recommended to place the commonly needed options
-in your drushrc.php file like so
+in your drushrc.php file like so:
 
-    # du Options
-    $command_specific['du-login']['user'] = 'AzureDiamond';
-    $command_specific['du-login']['pass'] = 'hunter2';
+    $ DrupalUser web client settings.
+    # If you want to be able to connect to many sites, use this keyed array.
+    # Usage: drush du-info site=d7
+    $options['du-sites'] = array(
+      '@d.o' => array(
+        'uri'      => 'https://www.drupal.org',
+        'username' => 'AzureDiamond',
+        'password' => 'hunter2',
+        'content_selector' => '#content',
+      ),
+      '@d7' => array(
+        'uri'      => 'http://dev.drupal7.dd:8083',
+        'username' => 'admin',
+        'password' => 'demopass',
+      ),
+    );
+    # Optional: Set the default site to use every time.
+    # $options['du-default-site'] = '@d.o';
+
+### Site Options
+
+url:
+  required
+
+username: 
+  required if doing logins     
+
+password : 
+  required if doing logins     
+
+content_selector :
+  DOM identifier for extracting the 'content' of a page
+  when scraping. This is often theme-specific.
+  EG `body > div[@class='main']`
+  Default: `#content`,
+
      
 ## Credits
 
