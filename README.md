@@ -4,7 +4,7 @@ A User agent for authenticating and interacting with a Drupal Site.
 
 Uses cookies to create a persistent session between drush actions.
 
-Supports TFA authentication (drupal.org)
+Supports TFA authentication (drupal.org) 2016
 
 Different profiles for different sites can be configured. 
 These profiles may be stored locally by adding them to you drushrc.

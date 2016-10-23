@@ -33,8 +33,11 @@ function du_drush_command() {
     'examples'           => array(
       'drush du-info'                                 => 'Get info on the currently chosen site.',
       'drush du-info --uri=http://groups.drupal.org/' => 'Get info on the named site.',
+      'drush du-info @d7'                             => 'Get info on the laelled site, as predefined in your du-info options for drush.',
     ),
-    'arguments'          => array(),
+    'arguments'          => array(
+      'site-alias'         => 'A site alias that contains site definition information for connecting to a site in this way.',
+    ),
     'required-arguments' => FALSE,
     'options'            => array(
       'pipe' => 'Print the full issue info data structure.',
@@ -47,6 +50,20 @@ function du_drush_command() {
     'output-data-type' => 'format-list',
 
     'aliases'   => array('dui'),
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
+    'topics'    => array('docs-du-commands'),
+  );
+
+  $items['du-sites'] = array(
+    'description'        => 'List the registered target sites, as defined in the drushrc du-sites array.',
+    'arguments'          => array(),
+    'required-arguments' => FALSE,
+    'options'            => $du_global_options,
+    'outputformat'     => array(
+      'default'     => 'key-value',
+      'pipe-format' => 'json',
+    ),
+    'output-data-type' => 'format-list',
     'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
     'topics'    => array('docs-du-commands'),
   );
@@ -98,10 +115,23 @@ function du_drush_command() {
 /**
  * Du-info command callback.
  */
-function drush_du_info() {
-  $du = drush_du_get_du();
+function drush_du_info($site_id = NULL) {
+  $du = drush_du_get_du($site_id);
   $info = $du->getSiteInfo();
   return $info;
+}
+
+
+/**
+ * List the registered sites.
+ */
+function drush_du_sites() {
+  $du_sites = drush_get_option('du-sites');
+  if (!empty($du_sites)) {
+    return array_keys($du_sites);
+  }
+  drush_print(dt("No du-sites defined. You can add some to your drushrc for easy reference.", array()));
+  return NULL;
 }
 
 /**
@@ -133,7 +163,7 @@ function drush_du_get_page($path) {
  *
  * On the Client side, the session is remembered via cookies.
  */
-function drush_du_get_du() {
+function drush_du_get_du($site_id = NULL) {
   require __DIR__ . '/vendor/autoload.php';
   // Transfer each of the supplied drush options into the site spec.
   // Use introspection to keep all available options in sync always.
@@ -144,18 +174,20 @@ function drush_du_get_du() {
   // If given a du_site info spec id,
   // load that first (then overwrite if more options are given).
   // Otherwise check for memory of a previous connection.
-  $site_id = '';
-  if ($default_id = drush_get_option('du-default-site')) {
+  if ($site_id) {
+    drush_du_remember($site_id);
+  }
+  elseif ($specified_id = drush_get_option('site')) {
+    $site_id = $specified_id;
+    drush_du_remember($specified_id);
+  }
+  elseif ($remembered_site = drush_du_remember()) {
+    $site_id = $remembered_site;
+  }
+  elseif ($default_id = drush_get_option('du-default-site')) {
     // 'du-default-site' is the default arg that may be set in drushrc.
     // This should lose against any other options.
     $site_id = $default_id;
-  }
-  if ($remembered_site = drush_du_remember()) {
-    $site_id = $remembered_site;
-  }
-  if ($specified_id = drush_get_option('site')) {
-    $site_id = $specified_id;
-    drush_du_remember($specified_id);
   }
 
   if ($site_id) {
@@ -200,27 +232,30 @@ function drush_du_cookiejar_file($key = 'default') {
 /**
  * Set the DU_SITE variable.
  *
- * By writing it out to a temporary file that we
+ * This enables the command to remember what site we are connected to, so it
+ * does not have to be stated again each time.
+ *
+ * It works by writing it out to a temporary file that we
  * then source for persistent site switching.
  *
  * Taken from drush site-set.
  *
- * @param string $site
- *  A valid site specification.
- *  If NULL, just return the one we remember.
+ * @param string $site_id
+ *   A valid site specification.
+ *   If NULL, just return the one we remember.
  *
  * @return string
  *   Site identifier.
  */
-function drush_du_remember($site = NULL) {
+function drush_du_remember($site_id = NULL) {
   if ($filename = drush_sitealias_get_envar_filename('drush-du-site')) {
     $last_site_filename = drush_sitealias_get_envar_filename('drush-du-prev-site-');
-    if ($site == '-') {
+    if ($site_id == '-') {
       if (file_exists($last_site_filename)) {
-        $site = file_get_contents($last_site_filename);
+        $site_id = file_get_contents($last_site_filename);
       }
       else {
-        $site = '@none';
+        $site_id = '@none';
       }
     }
     $du_sites = drush_get_option('du-sites');
@@ -232,32 +267,32 @@ function drush_du_remember($site = NULL) {
       $prev_site = NULL;
     }
 
-    if ($site === NULL) {
+    if ($site_id === NULL) {
       // When not defined, retrieve the last one we remember.
-      $site = $prev_site;
+      $site_id = $prev_site;
     }
-    if (isset($du_sites[$site]) || $site == '@none') {
+    if (isset($du_sites[$site_id]) || $site_id == '@none') {
       // $site is a valid id.
-      if (file_exists($filename) && ($site != $prev_site)) {
+      if (file_exists($filename) && ($site_id != $prev_site)) {
         @unlink($last_site_filename);
         @rename($filename, $last_site_filename);
       }
-      $success_message = dt("Site set to !site", array('!site' => $site));
-      if ($site == '@none') {
+      $success_message = dt("Site set to !site_id", array('!site_id' => $site_id));
+      if ($site_id == '@none') {
         if (drush_delete_dir($filename)) {
           drush_print($success_message);
         }
       }
       elseif (drush_mkdir(dirname($filename), TRUE)) {
-        if (file_put_contents($filename, $site)) {
+        if (file_put_contents($filename, $site_id)) {
           drush_print($success_message);
         }
       }
     }
     else {
-      drush_set_error('DRUPAL_SITE_NOT_FOUND', dt("Could not find a site definition for !site.", array('!site' => $site)));
+      drush_set_error('DRUPAL_SITE_NOT_FOUND', dt("Could not find a preset site definition for !site_id. Either add the required connection details in your drush options, or pass the URL and things in as command options.", array('!site_id' => $site_id)));
     }
   }
-  return $site;
+  return $site_id;
 }
 
