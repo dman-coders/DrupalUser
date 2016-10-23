@@ -76,7 +76,7 @@ class DrupalUser extends Client {
   public function getSiteInfo() {
     $info = array();
 
-    $this->log("Contacting server :uri ...", array(':uri' => $this->site['uri']));
+    $this->log("Contacting server :uri ...", array(':uri' => $this->site['uri']), 'notice');
 
     /** @var Crawler $crawler */
     $crawler = $this->request('GET', $this->site['uri']);
@@ -113,6 +113,7 @@ class DrupalUser extends Client {
     }
     $this->log("Authenticating...", array());
     $login_url = $this->site['uri'] . '/user';
+    $this->log("Fetching URL :url", array(':url' => $login_url), 'debug');
     /** @var \Symfony\Component\DomCrawler\Crawler $crawler */
     $crawler = $this->request('GET', $login_url);
     if ($this->isLoggedIn($crawler)) {
@@ -124,6 +125,10 @@ class DrupalUser extends Client {
       'name' => $this->site['username'],
       'pass' => $this->site['password'],
     );
+
+    # $content = $crawler->filter($this->site['content_selector'])->html();
+    # $this->log('Login form loaded, <pre>:content</pre>', array(':content' => $content), 'debug');
+
     $crawler = $this->submit($form, $parameters);
 
     // See if that looked like a success.
@@ -213,8 +218,16 @@ class DrupalUser extends Client {
    */
   protected function isLoggedIn(Crawler $crawler) {
     // Our best clue is the <body class="logged-in"> parameter we see
-    // in almost all Drupal themes.
-    return $crawler->filter('body.logged-in')->count() > 0;
+    // in almost all D7 Drupal themes.
+    if ($crawler->filter('body.logged-in')->count() > 0) {
+      return TRUE;
+    }
+
+    // In Drupal8, it's user-logged-in.
+    if ($crawler->filter('body.user-logged-in')->count() > 0) {
+      return TRUE;
+    }
+    return FALSE;
   }
 
   /**
@@ -262,6 +275,10 @@ class DrupalUser extends Client {
       $this->logger->log($logLevel, '[' . $function . '] ' . dt($message, $strings));
     }
     else {
+      // Drush doesn't go down to debug. drush -d is just 'notice' level.
+      if ($logLevel == 'debug') {
+        $logLevel = 'notice';
+      }
       drush_log('[' . $function . '] ' . dt($message, $strings), $logLevel);
     }
   }
